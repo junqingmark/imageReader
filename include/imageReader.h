@@ -12,16 +12,16 @@ public:
 	static imageReader* createInstance();
 	static void releaseInstance();
 	char* loadImage(string& fileName);
-	unsigned long getImageWidth();
-	unsigned long getImageHeight();
+	unsigned int getImageWidth();
+	unsigned int getImageHeight();
 	int getImageDepth();
 
 private:
 	imageReader();
 	~imageReader();
 	static imageReader* readerInstance;
-	unsigned long m_width;
-	unsigned long m_height;
+	unsigned int m_width;
+	unsigned int m_height;
 	int m_depth;
 	
 };

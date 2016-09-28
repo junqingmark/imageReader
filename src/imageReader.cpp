@@ -2,6 +2,7 @@
 #include <string>
 #include <fstream>
 #include <png.h>
+#include "jpeglib.h"
 #include <stdio.h>
 
 imageReader* imageReader::readerInstance = NULL;
@@ -37,12 +38,12 @@ void imageReader::releaseInstance()
 	}
 }
 
-unsigned long imageReader::getImageWidth()
+unsigned int imageReader::getImageWidth()
 {
 	return m_width;
 }
 
-unsigned long imageReader::getImageHeight()
+unsigned int imageReader::getImageHeight()
 {
 	return m_height;
 }
@@ -52,7 +53,7 @@ int imageReader::getImageDepth()
 	return m_depth;
 }
 
-char* loadBMP(string& fileName, unsigned long& width, unsigned long& height, int& depth)
+char* loadBMP(string& fileName, unsigned int& width, unsigned int& height, int& depth)
 {
 	char bmpHeader[54];
 	ifstream ifs;
@@ -74,11 +75,11 @@ char* loadBMP(string& fileName, unsigned long& width, unsigned long& height, int
 		return NULL;
 	}
 
-	int bmpTotalSize = bmpHeader[3] + (bmpHeader[4] << 8) + (bmpHeader[5] << 16) + (bmpHeader[6] << 24);
+	int bmpTotalSize = (unsigned char)bmpHeader[3] + (((unsigned char)bmpHeader[4]) << 8) + (((unsigned char)bmpHeader[5]) << 16) + (((unsigned char)bmpHeader[6]) << 24);
 	cout << "The total size of the bmp file is " << bmpTotalSize << endl;
 
-	width = bmpHeader[18] + (bmpHeader[19] << 8) + (bmpHeader[20] << 16) + (bmpHeader[21] << 24);
-	height = bmpHeader[22] + (bmpHeader[23] << 8) + (bmpHeader[24] << 16) + (bmpHeader[25] << 24);
+	width = (unsigned char)bmpHeader[18] + (((unsigned char)bmpHeader[19]) << 8) + (((unsigned char)bmpHeader[20]) << 16) + (((unsigned char)bmpHeader[21]) << 24);
+	height = (unsigned char)bmpHeader[22] + (((unsigned char)bmpHeader[23]) << 8) + (((unsigned char)bmpHeader[24]) << 16) + (((unsigned char)bmpHeader[25])  << 24);
 
 	int bitsPerPixel = bmpHeader[28];
 	if (bitsPerPixel != 24 && bitsPerPixel != 32)
@@ -89,8 +90,8 @@ char* loadBMP(string& fileName, unsigned long& width, unsigned long& height, int
 	}
 
 	//int bmpPixelSize = bmpHeader[34] + (bmpHeader[35] << 8) + (bmpHeader[36] << 16) + (bmpHeader[37] << 24);
-	int bmpPixelSize = bitsPerPixel * width * height;
-	depth = bmpPixelSize;
+	int bmpPixelSize = bitsPerPixel/8 * width * height;
+	depth = bitsPerPixel;
 
 	char* bmpPixel = new char[bmpPixelSize];
 	int cur = ifs.tellg();
@@ -100,12 +101,25 @@ char* loadBMP(string& fileName, unsigned long& width, unsigned long& height, int
 
 	int i;
 	char tmp;
-	for (i = 0; i < bmpPixelSize; i += 3)
+	if (24 == depth)
 	{
-		tmp = bmpPixel[i];
-		bmpPixel[i] = bmpPixel[i + 2];
-		bmpPixel[i + 2] = tmp;
+		for (i = 0; i < bmpPixelSize; i += 3)
+		{
+			tmp = bmpPixel[i];
+			bmpPixel[i] = bmpPixel[i + 2];
+			bmpPixel[i + 2] = tmp;
+		}
 	}
+	else if (32 == depth)
+	{
+		for (i = 0; i < bmpPixelSize; i += 4)
+		{
+			tmp = bmpPixel[i];
+			bmpPixel[i] = bmpPixel[i + 2];
+			bmpPixel[i + 2] = tmp;
+		}
+	}
+	
 	return bmpPixel;
 
 	ifs.close();
@@ -113,7 +127,7 @@ char* loadBMP(string& fileName, unsigned long& width, unsigned long& height, int
 }
 
 
-char* loadPNG(string& fileName, unsigned long& width, unsigned long& height, int& depth)
+char* loadPNG(string& fileName, unsigned int& width, unsigned int& height, int& depth)
 {
 	png_structp png_ptr;
 	png_infop info_ptr;
@@ -182,6 +196,7 @@ char* loadPNG(string& fileName, unsigned long& width, unsigned long& height, int
 		case PNG_COLOR_TYPE_RGB:
 		{
 			k = 0;
+			depth = 24;
 			pngPixel = new char[3 * width * height];
 			cout << "pngPixel == " << pngPixel << endl;
 			if (NULL == pngPixel)
@@ -204,6 +219,7 @@ char* loadPNG(string& fileName, unsigned long& width, unsigned long& height, int
 		case PNG_COLOR_TYPE_RGB_ALPHA:
 		{
 			k = 0;
+			depth = 32;
 			pngPixel = new char[4 * width * height];
 			if (NULL == pngPixel)
 			{
@@ -232,9 +248,93 @@ char* loadPNG(string& fileName, unsigned long& width, unsigned long& height, int
 
 }
 
-char* loadJPG(string& fileName, unsigned long& width, unsigned long& height, int& depth)
+struct my_error_mgr {
+  struct jpeg_error_mgr pub;    /* "public" fields */
+
+  jmp_buf setjmp_buffer;        /* for return to caller */
+};
+
+typedef struct my_error_mgr *my_error_ptr;
+
+void my_error_exit (j_common_ptr cinfo)
 {
-	return NULL;
+  /* cinfo->err really points to a my_error_mgr struct, so coerce pointer */
+  my_error_ptr myerr = (my_error_ptr) cinfo->err;
+
+  /* Always display the message. */
+  /* We could postpone this until after returning, if we chose. */
+  (*cinfo->err->output_message) (cinfo);
+
+  /* Return control to the setjmp point */
+  longjmp(myerr->setjmp_buffer, 1);
+}
+
+
+
+char* loadJPG(string& fileName, unsigned int& width, unsigned int& height, int& depth)
+{
+	struct jpeg_decompress_struct cinfo;
+	struct my_error_mgr jerr;
+	JSAMPARRAY buffer;
+	int row_stride;
+	char* jpgPixel;
+
+	FILE* fp = NULL;
+
+	fp = fopen(fileName.c_str(), "rb");
+	if(NULL == fp)
+	{
+		cout << "Fail to open file: " << fileName << endl;
+		return NULL;
+	}
+
+	cinfo.err = jpeg_std_error(&jerr.pub);
+	jerr.pub.error_exit = my_error_exit;
+
+	if (setjmp(jerr.setjmp_buffer))
+	{
+		 jpeg_destroy_decompress(&cinfo);
+		 fclose(fp);
+		 return 0;
+	}
+	jpeg_create_decompress(&cinfo);
+	jpeg_stdio_src(&cinfo, fp);
+	jpeg_read_header(&cinfo, TRUE);
+	jpeg_start_decompress(&cinfo);
+	width = cinfo.output_width;
+	height = cinfo.output_height;
+
+	if (cinfo.out_color_space == JCS_RGB)
+	{
+		depth = 24;
+
+	}
+	else if(cinfo.out_color_space == JCS_GRAYSCALE)
+	{
+		depth = 8;
+	}
+
+	int k =0;
+	row_stride = cinfo.output_width * cinfo.output_components;
+	jpgPixel = new char[row_stride * height];
+	buffer = (*cinfo.mem->alloc_sarray)((j_common_ptr) &cinfo, JPOOL_IMAGE, row_stride, 1);
+	while (cinfo.output_scanline < cinfo.output_height)
+	{
+		jpeg_read_scanlines(&cinfo, buffer, 1);
+		int i;
+		for ( i = 0; i < row_stride; ++i)
+		{
+			jpgPixel[k++] = buffer[0][i];
+		}
+
+	}
+
+	(void) jpeg_finish_decompress(&cinfo);
+
+	jpeg_destroy_decompress(&cinfo);
+	fclose(fp);
+
+	return jpgPixel;
 }
 
 char* imageReader::loadImage(string& fileName)

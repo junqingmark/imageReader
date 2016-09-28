@@ -15,7 +15,7 @@ int main(int argc, char* argv[])
 	}
 
 	imageReader* bmpReader = imageReader::createInstance();
-	string fileName = "Chrysanthemum.png";
+	string fileName = "test.bmp";
 	char* pixel = NULL;
 
 	pixel = bmpReader->loadImage(fileName);
@@ -36,7 +36,7 @@ int main(int argc, char* argv[])
     amask = 0xff000000;
 
 	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-	bitmapSurface = SDL_CreateRGBSurfaceFrom(pixel, width, height, 32, 4*width, rmask, gmask, bmask, amask);
+	bitmapSurface = SDL_CreateRGBSurfaceFrom(pixel, width, height, 24, 3*width, rmask, gmask, bmask, amask);
 
 	bitmapTex = SDL_CreateTextureFromSurface(renderer, bitmapSurface);
 	SDL_FreeSurface(bitmapSurface);

@@ -21,6 +21,8 @@ fstream
 -
 png.h
 -
+jpeglib.h
+/home/henry/src_test/imageReader/src/jpeglib.h
 stdio.h
 -
 

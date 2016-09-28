@@ -36,12 +36,12 @@ GLfloat vVertices[] = {
 };
 
 GLfloat vCoords[] = {
-		0.0f, 1.0f,
-		1.0f, 1.0f,
-		1.0f, 0.0f,
-		0.0f, 1.0f,
 		0.0f, 0.0f,
-		1.0f, 0.0f
+		1.0f, 0.0f,
+		1.0f, 1.0f,
+		0.0f, 0.0f,
+		0.0f, 1.0f,
+		1.0f, 1.0f
 };
 
 GLuint LoadShader(const char *shaderSrc, GLenum type)
@@ -248,13 +248,16 @@ int main(int argc, char* argv[])
 	Display *x_display;
 	imageReader* bmpReader = imageReader::createInstance();
 
-	string fileName = "Chrysanthemum.png";
+	string fileName = "test.bmp";
 	char* pixel = NULL;
 
 	pixel = bmpReader->loadImage(fileName);
-	unsigned long width = bmpReader->getImageWidth();
-	unsigned long height = bmpReader->getImageHeight();
+	unsigned int width = bmpReader->getImageWidth();
+	unsigned int height = bmpReader->getImageHeight();
 	int depth = bmpReader->getImageDepth();
+
+	cout << "The size of the window is " << width << "*" << height << endl;
+	cout << "The depth of the picture " << depth << endl;
 	
 	
 	x_display = XOpenDisplay(NULL);
@@ -279,7 +282,7 @@ int main(int argc, char* argv[])
 
 	glGenTextures(1, &textureID);
 	glBindTexture(GL_TEXTURE_2D, textureID);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, pixel);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
