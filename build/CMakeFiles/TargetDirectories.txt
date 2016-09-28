@@ -1,3 +1,0 @@
-/home/henry/src_test/imageReader/build/CMakeFiles/edit_cache.dir
-/home/henry/src_test/imageReader/build/CMakeFiles/rebuild_cache.dir
-/home/henry/src_test/imageReader/build/CMakeFiles/imageReader.dir
