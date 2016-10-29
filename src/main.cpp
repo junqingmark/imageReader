@@ -4,11 +4,15 @@
 #include <X11/Xlib.h>
 #include <cstdlib>
 #include <imageReader.h>
+#include <signal.h>
+#include <sys/types.h>
+#include <X11/keysym.h>
 
 using namespace std;
 
 EGLSurface eglSurface;
 EGLDisplay eglDisplay;
+int quit;
 
 /*
 GLfloat vVertices[] = {-0.5f, 0.5f, 0.0f,
@@ -34,7 +38,7 @@ GLfloat vVertices[] = {
 		-1.0f, -1.0f, 0.0f,
 		1.0f, -1.0f, 0.0f
 };
-
+/*
 GLfloat vCoords[] = {
 		0.0f, 0.0f,
 		1.0f, 0.0f,
@@ -42,6 +46,17 @@ GLfloat vCoords[] = {
 		0.0f, 0.0f,
 		0.0f, 1.0f,
 		1.0f, 1.0f
+};
+*/
+
+GLfloat vCoords[] = {
+		0.0f, 1.0f,
+		1.0f, 1.0f,
+		1.0f, 0.0f,
+
+		0.0f,1.0f,
+		0.0f, 0.0f,
+		1.0f, 0.0f
 };
 
 GLuint LoadShader(const char *shaderSrc, GLenum type)
@@ -243,8 +258,10 @@ void draw(int width, int height)
 
 }
 
+
 int main(int argc, char* argv[])
 {
+	KeySym   escape;
 	Display *x_display;
 	imageReader* bmpReader = imageReader::createInstance();
 
@@ -264,6 +281,10 @@ int main(int argc, char* argv[])
 	int screen = DefaultScreen(x_display);
 
 	Window win = XCreateSimpleWindow(x_display, RootWindow(x_display, screen), 0, 0, /*DisplayWidth(x_display, screen)*/width, /*DisplayHeight(x_display, screen)*/height, 0, 0, WhitePixel(x_display,screen) );
+
+	XSelectInput(x_display, win, ExposureMask | KeyPressMask | KeyReleaseMask);
+	escape = XKeysymToKeycode(x_display, XK_Escape);
+
 	XMapWindow(x_display,win);
 
 	if (!InitializeWindow(win, x_display))
@@ -286,8 +307,22 @@ int main(int argc, char* argv[])
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-	while(1)
+	quit = 0;
+	XEvent event;
+
+	while(!quit)
 	{
+		XNextEvent(x_display, &event);
+		if(event.type == KeyPress)
+		{
+			cout << "===KeyPress===" << endl;
+			if(event.xkey.keycode == escape)
+			{
+				quit = 1;	
+			}
+			
+		}
+
 		draw(width, height);
 		eglSwapBuffers(eglDisplay, eglSurface);
 	}
